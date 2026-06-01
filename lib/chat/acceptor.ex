@@ -1,9 +1,16 @@
 defmodule Chat.Acceptor do
-require Logger
+  use GenServer
+
+  require Logger
+
+  @spec start_link(keyword()) :: GenServer.on_start()
+  def start_link(options) do
+    GenServer.start_link(__MODULE__, options)
+  end
 
   defstruct [:listen_socket, :supervisor]
 
-  @impl true
+  #@impl true
   def init(options) do
     port = Keyword.fetch!(options, :port)
 
@@ -29,7 +36,7 @@ require Logger
     end
   end
 
-  @impl true
+  #@impl true
   def handle_info(:accept, %__MODULE__{} = state) do
     case :gen_tcp.accept(state.listen_socket, 2_000) do
       {:ok, socket} ->
@@ -39,7 +46,7 @@ require Logger
           {Chat.Connection, socket}
         )
 
-        :ok = :gwn_tcp.controlling_process(socket, pid)
+        :ok = :gen_tcp.controlling_process(socket, pid)
         send(self(), :accept)
         {:noreply, state}
 

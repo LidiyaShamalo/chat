@@ -10,6 +10,8 @@ defmodule Chat.Application do
     children = [
       # Starts a worker by calling: Chat.Worker.start_link(arg)
       # {Chat.Worker, arg}
+      {Registry, keys: :duplicate, name: Chat.BroadcastRegistry},
+      {Registry, keys: :unique, name: Chat.UsernameRegistry},
       {Chat.Acceptor, port: 4000}
     ]
 

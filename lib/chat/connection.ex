@@ -1,7 +1,7 @@
 defmodule Chat.Connection do
   use GenServer, restart: :temporary
 
-  alias Chat.Message.Register
+  alias Chat.Message.{Register, Broadcast}
 
   @spec start_link(:gen_tcp.socket()) :: GenServer.on_start()
   def start_link(socket) do
@@ -86,5 +86,17 @@ defmodule Chat.Connection do
     encoded_message = Chat.Protocol.encode_message(message)
     :ok = :gen_tcp.send(state.socket, encoded_message)
     {:noreply, state}
+  end
+
+  # закрытие соединения клиентом
+  @impl true
+  def handle_info({:tcp_closed, _socket}, state) do
+    {:stop, :normal, state}
+  end
+
+  # обработка ошибок сокета (напрб внезапный обрыв)
+  @impl true
+  def handle_info({:tcp_error, _socket, _reason}, state) do
+    {:stop, :normal, state}
   end
 end

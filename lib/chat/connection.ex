@@ -1,6 +1,8 @@
 defmodule Chat.Connection do
   use GenServer, restart: :temporary
 
+  require Logger
+
   alias Chat.Message.{Register, Broadcast}
 
   @spec start_link(:gen_tcp.socket()) :: GenServer.on_start()
@@ -16,8 +18,6 @@ defmodule Chat.Connection do
   end
 
   @impl true
-  def handle_info(message, state)
-
   def handle_info(
     {:tcp, socket, data},
     %__MODULE__{socket: socket} = state
@@ -25,6 +25,24 @@ defmodule Chat.Connection do
     state = update_in(state.buffer, &(&1 <> data))
     :ok = :inet.setopts(socket, active: :once)
     handle_new_data(state)
+  end
+
+  # закрытие соединения клиентом
+  @impl true
+  def handle_info({:tcp_closed, _socket}, state) do
+    {:stop, :normal, state}
+  end
+
+  # обработка ошибок сокета (напрб внезапный обрыв)
+  @impl true
+  def handle_info({:tcp_error, _socket, _reason}, state) do
+    {:stop, :normal, state}
+  end
+
+  def handle_info({:broadcast, %Broadcast{} = message}, state) do
+    encoded_message = Chat.Protocol.encode_message(message)
+    :ok = :gen_tcp.send(state.socket, encoded_message)
+    {:noreply, state}
   end
 
   ## Helpers
@@ -82,21 +100,4 @@ defmodule Chat.Connection do
     {:ok, state}
   end
 
-  def handle_info({:broadcast, %Broadcast{} = message}, state) do
-    encoded_message = Chat.Protocol.encode_message(message)
-    :ok = :gen_tcp.send(state.socket, encoded_message)
-    {:noreply, state}
-  end
-
-  # закрытие соединения клиентом
-  @impl true
-  def handle_info({:tcp_closed, _socket}, state) do
-    {:stop, :normal, state}
-  end
-
-  # обработка ошибок сокета (напрб внезапный обрыв)
-  @impl true
-  def handle_info({:tcp_error, _socket, _reason}, state) do
-    {:stop, :normal, state}
-  end
 end
